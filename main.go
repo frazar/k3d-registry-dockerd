@@ -16,7 +16,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	registrytypes "github.com/docker/docker/api/types/registry"
 )
+
+var auth_header_encoded_global string
 
 func handleHelloWorld(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(w, "Hello, world!\n")
@@ -54,7 +58,7 @@ func findAndExportImage(ctx context.Context, imageName, imageTagOrDigest string)
 	}
 	if image == nil {
 		log.Printf("Pulling Docker image %s", fullName)
-		found, err := DockerImagePull(ctx, fullName, func(statusMessage string) {
+		found, err := DockerImagePull(ctx, fullName, auth_header_encoded_global, func(statusMessage string) {
 			log.Println(statusMessage)
 		})
 		if err != nil {
@@ -627,6 +631,32 @@ func main() {
 		log.Printf("Using default address: %q", defaultAddr)
 		*addr = defaultAddr
 	}
+
+	var err error
+
+	auth_header_encoded_global, err = registrytypes.EncodeAuthConfig(registrytypes.AuthConfig{
+		Username:      "myuser",
+		Password:      "mypassword",
+		ServerAddress: "localhost:5001",
+	})
+	if err != nil {
+		return
+	}
+	// username := "myuser"
+	// password := "mypassword"
+	// email := "test@example.com"
+	// serveraddress := "localhost:5001"
+
+	// auth_header_plain := fmt.Sprintf(
+	// 	"{\"username\":\"%s\",\"password\":\"%s\",\"email\":\"%s\",\"serveraddress\":\"%s\"}",
+	// 	username,
+	// 	password,
+	// 	email,
+	// 	serveraddress,
+	// )
+
+	// auth_header_encoded_global = base64.StdEncoding.EncodeToString([]byte(auth_header_plain))
+	log.Printf("auth_header_encoded_global: %s", auth_header_encoded_global)
 
 	// test docker client
 	ctx := context.Background()

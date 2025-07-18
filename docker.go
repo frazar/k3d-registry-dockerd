@@ -5,6 +5,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/errdefs"
@@ -90,9 +91,18 @@ func DockerImageInspect(ctx context.Context, reference string) (*image.InspectRe
 	})
 }
 
-func DockerImagePull(ctx context.Context, reference string, statusHandler func(statusMessage string)) (bool, error) {
+func DockerImagePull(
+	ctx context.Context,
+	reference string,
+	auth_header_encoded string,
+	statusHandler func(statusMessage string)) (bool, error) {
+
+	options := image.PullOptions{
+		RegistryAuth: auth_header_encoded,
+	}
+
 	return withDockerClientValue(func(c *client.Client) (bool, error) {
-		resp, err := c.ImagePull(ctx, reference, image.PullOptions{})
+		resp, err := c.ImagePull(ctx, reference, options)
 		if resp != nil {
 			defer resp.Close()
 		}
