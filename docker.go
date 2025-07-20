@@ -107,6 +107,9 @@ func DockerImagePull(
 			defer resp.Close()
 		}
 		if err != nil {
+			if errdefs.IsUnauthorized(err) {
+				return false, err
+			}
 			if errdefs.IsNotFound(err) {
 				return false, nil
 			}

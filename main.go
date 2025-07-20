@@ -18,6 +18,7 @@ import (
 	"strings"
 
 	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
 )
 
 var auth_header_encoded_global string
@@ -61,6 +62,9 @@ func findAndExportImage(ctx context.Context, imageName, imageTagOrDigest string)
 		found, err := DockerImagePull(ctx, fullName, auth_header_encoded_global, func(statusMessage string) {
 			log.Println(statusMessage)
 		})
+		if errdefs.IsUnauthorized(err) {
+			return false, err
+		}
 		if err != nil {
 			return false, err
 		}
@@ -529,9 +533,18 @@ func handleManifests(w http.ResponseWriter, req *http.Request) {
 		name = fmt.Sprint(domain, "/", name)
 	}
 
+	authentication_header := req.Header.Get("Authentication")
+	log.Printf("Authentication header: %s", authentication_header)
+
 	// export image if we haven't yet
 	if domain != "" {
 		found, err := ensureImageInCache(req.Context(), name, tagOrDigest)
+		if errdefs.IsUnauthorized(err) {
+			s := fmt.Sprint(err)
+			log.Printf("response body: %s", s)
+			http.Error(w, fmt.Sprint(err), http.StatusUnauthorized)
+			return
+		}
 		if err != nil {
 			http.Error(w, fmt.Sprint(err), http.StatusInternalServerError)
 			return
@@ -636,7 +649,7 @@ func main() {
 
 	auth_header_encoded_global, err = registrytypes.EncodeAuthConfig(registrytypes.AuthConfig{
 		Username:      "myuser",
-		Password:      "mypassword",
+		Password:      "mypassword WRONG",
 		ServerAddress: "localhost:5001",
 	})
 	if err != nil {
